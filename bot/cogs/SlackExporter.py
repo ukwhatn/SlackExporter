@@ -187,12 +187,40 @@ class SlackExporter(commands.Cog):
         await ctx.respond("開始します", ephemeral=True)
 
         category = ctx.channel.category
-        exist_channel_names = [channel.name for channel in category.channels]
+
+        categories = [category]
 
         for channel_name in self.messages.keys():
 
-            if channel_name in exist_channel_names:
+            # 既存Chはスキップ
+            is_exist = False
+            for _c in categories:
+                if channel_name in [channel.name for channel in _c.channels]:
+                    is_exist = True
+                    break
+
+            if is_exist:
                 continue
+
+            # カテゴリ内のチャンネルが50を超えていたら新しく作成
+            if len(category.channels) >= 50:
+
+                # category上書き
+                if f"{categories[0].name}_{len(categories) + 1}" in [category.name for category in
+                                                                     ctx.guild.categories]:
+                    # すでにあったらそれを使う
+                    category = [category for category in ctx.guild.categories if
+                                category.name == f"{categories[0].name}_{len(categories) + 1}"][0]
+                else:
+                    # なければ新しく作成
+                    category = await ctx.guild.create_category(
+                        name=f"{categories[0].name}_{len(categories) + 1}",
+                        overwrites=category.overwrites,
+                        position=category.position + 1
+                    )
+
+                # リスト追加
+                categories.append(category)
 
             channel = await ctx.guild.create_text_channel(
                 name=channel_name,
