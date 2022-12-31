@@ -3,7 +3,7 @@ from discord.commands import slash_command
 from discord.ext import commands
 
 
-class SlackExporter(commands.Cog):
+class Util(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -22,4 +22,4 @@ class SlackExporter(commands.Cog):
 
 
 def setup(bot):
-    return bot.add_cog(SlackExporter(bot))
+    return bot.add_cog(Util(bot))
