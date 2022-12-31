@@ -26,5 +26,6 @@ bot = commands.Bot(help_command=None,
 bot.load_extension("cogs.Admin")
 bot.load_extension("cogs.CogManager")
 bot.load_extension("cogs.SlackExporter")
+bot.load_extension("cogs.Util")
 
 bot.run(bot_config.TOKEN)
