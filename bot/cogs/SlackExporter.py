@@ -118,7 +118,7 @@ class SlackExporter(commands.Cog):
                         pprint(_d)
                         raise
 
-            res[dirname] = _data
+            res[dirname] = sorted(_data, key=lambda x: float(x.message_ts))
         return res
 
     async def autocomplete_channel_names(self, ctx: discord.commands.context.ApplicationContext):
