@@ -124,13 +124,8 @@ class SlackExporter(commands.Cog):
     async def autocomplete_channel_names(self, ctx: discord.commands.context.ApplicationContext):
         return [value for value in self.messages.keys() if value.startswith(ctx.value)]
 
-    @slash_command(name="execute", description="移行を開始します")
-    @commands.is_owner()
-    async def execute(self, ctx,
-                      channel_name: Option(str, 'provide channel name', autocomplete=autocomplete_channel_names)):
-        await ctx.respond("開始します", ephemeral=True)
-
-        await ctx.send("\n".join([
+    async def export_log(self, channel: discord.TextChannel, channel_name: str = None):
+        await channel.send("\n".join([
             "===================",
             "ここからSlackのログ",
             "==================="
@@ -138,7 +133,7 @@ class SlackExporter(commands.Cog):
 
         ts_msg_dict = {}
 
-        messages = self.messages[channel_name]
+        messages = self.messages[channel.name if channel_name is None else channel_name]
         for message in messages:
 
             embed = discord.Embed(
@@ -159,20 +154,46 @@ class SlackExporter(commands.Cog):
                 reply_to = ts_msg_dict[message.thread_ts]
 
             if reply_to is None:
-                msg = await ctx.send(embed=embed)
+                msg = await channel.send(embed=embed)
             else:
                 msg = await reply_to.reply(embed=embed)
 
             if len(attachments) > 0:
-                await ctx.send(files=attachments)
+                await channel.send(files=attachments)
 
             ts_msg_dict[message.message_ts] = msg
 
-        await ctx.send("\n".join([
+        await channel.send("\n".join([
             "===================",
             "ここまでSlackのログ",
             "==================="
         ]))
+
+    @slash_command(name="execute", description="移行を開始します")
+    @commands.is_owner()
+    async def execute(self, ctx,
+                      channel_name: Option(str, 'provide channel name', autocomplete=autocomplete_channel_names)):
+        await ctx.respond("開始します", ephemeral=True)
+        await self.export_log(ctx.channel, channel_name)
+
+    @slash_command(name="execute_bulk", description="全ログの自動移行を開始します")
+    @commands.is_owner()
+    async def execute_bulk(self, ctx: discord.commands.context.ApplicationContext):
+        await ctx.respond("開始します", ephemeral=True)
+
+        category = ctx.channel.category
+        exist_channel_names = [channel.name for channel in category.channels]
+
+        for channel_name in self.messages.keys():
+
+            if channel_name in exist_channel_names:
+                continue
+
+            channel = await category.create_text_channel(
+                name=channel_name,
+                category=category
+            )
+            await self.export_log(channel)
 
     @slash_command(name="purge", description="全メッセージを削除します")
     @commands.is_owner()
