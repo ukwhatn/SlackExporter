@@ -5,12 +5,6 @@ services:
     build: ./dockerfiles/bot
     volumes:
       - ./bot:/opt
-    networks:
-      - nw_bot  # TODO: CHANGE THIS TO YOUR NETWORK NAME
     env_file:
       - envs/bot.env
     restart: always
-
-networks:
-  nw_bot:  # TODO: CHANGE THIS TO YOUR NETWORK NAME
-    driver: bridge
