@@ -20,6 +20,16 @@ class Util(commands.Cog):
 
         await ctx.respond("完了しました", ephemeral=True)
 
+    @slash_command(name="purge_channels", description="カテゴリ内のチャンネルを全て削除します")
+    @commands.is_owner()
+    async def purge_channels(self, ctx: discord.commands.context.ApplicationContext):
+        await ctx.respond("開始します", ephemeral=True)
+
+        for ch in ctx.channel.category.channels:
+            if ch.id == ctx.channel.id:
+                continue
+            await ch.delete()
+
 
 def setup(bot):
     return bot.add_cog(Util(bot))
