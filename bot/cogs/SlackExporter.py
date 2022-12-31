@@ -6,6 +6,7 @@ from pprint import pprint
 
 import discord
 import httpx
+import sentry_sdk
 from discord import Option
 from discord.commands import slash_command
 from discord.ext import commands
@@ -136,32 +137,36 @@ class SlackExporter(commands.Cog):
         messages = self.messages[channel.name if channel_name is None else channel_name]
         for message in messages:
 
-            embed = discord.Embed(
-                title=message.user_real_name,
-                description=message.text,
-                timestamp=datetime.fromtimestamp(float(message.message_ts), tz=datetime.now().astimezone().tzinfo),
-                color=discord.Color.blue()
-            )
-            embed.set_author(name=message.user_name, icon_url=message.user_profile_image)
+            try:
+                embed = discord.Embed(
+                    title=message.user_real_name,
+                    description=message.text,
+                    timestamp=datetime.fromtimestamp(float(message.message_ts), tz=datetime.now().astimezone().tzinfo),
+                    color=discord.Color.blue()
+                )
+                embed.set_author(name=message.user_name, icon_url=message.user_profile_image)
 
-            attachments = []
-            for attachment in message.attachments:
-                file = io.BytesIO(httpx.get(attachment.url).read())
-                attachments.append(discord.File(file, filename=attachment.name))
+                attachments = []
+                for attachment in message.attachments:
+                    file = io.BytesIO(httpx.get(attachment.url).read())
+                    attachments.append(discord.File(file, filename=attachment.name))
 
-            reply_to: discord.Message | None = None
-            if message.message_ts != message.thread_ts and message.thread_ts in ts_msg_dict:
-                reply_to = ts_msg_dict[message.thread_ts]
+                reply_to: discord.Message | None = None
+                if message.message_ts != message.thread_ts and message.thread_ts in ts_msg_dict:
+                    reply_to = ts_msg_dict[message.thread_ts]
 
-            if reply_to is None:
-                msg = await channel.send(embed=embed)
-            else:
-                msg = await reply_to.reply(embed=embed)
+                if reply_to is None:
+                    msg = await channel.send(embed=embed)
+                else:
+                    msg = await reply_to.reply(embed=embed)
 
-            if len(attachments) > 0:
-                await channel.send(files=attachments)
+                if len(attachments) > 0:
+                    await channel.send(files=attachments)
 
-            ts_msg_dict[message.message_ts] = msg
+                ts_msg_dict[message.message_ts] = msg
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
+                continue
 
         await channel.send("\n".join([
             "===================",
