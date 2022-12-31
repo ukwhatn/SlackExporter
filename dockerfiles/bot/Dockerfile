@@ -15,8 +15,7 @@ ENV LC_ALL ja_JP.UTF-8
 ENV TZ JST-9
 ENV TERM xterm
 
-RUN pip install --upgrade pip
-RUN pip install --upgrade setuptools
-RUN python -m pip install --upgrade py-cord
+RUN pip install --upgrade pip setuptools sentry-sdk
+RUN python -m pip install --upgrade py-cord httpx
 
 CMD ["/opt/bot.sh"]
