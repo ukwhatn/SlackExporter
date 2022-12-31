@@ -174,6 +174,13 @@ class SlackExporter(commands.Cog):
             "==================="
         ]))
 
+    @slash_command(name="purge", description="全メッセージを削除します")
+    @commands.is_owner()
+    async def purge(self, ctx: discord.commands.context.ApplicationContext):
+        await ctx.respond("開始します", ephemeral=True)
+        await ctx.channel.purge(limit=None)
+        await ctx.respond("完了しました", ephemeral=True)
+
 
 def setup(bot):
     return bot.add_cog(SlackExporter(bot))
