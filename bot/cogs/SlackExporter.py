@@ -189,7 +189,7 @@ class SlackExporter(commands.Cog):
             if channel_name in exist_channel_names:
                 continue
 
-            channel = await category.create_text_channel(
+            channel = await ctx.guild.create_text_channel(
                 name=channel_name,
                 category=category
             )
