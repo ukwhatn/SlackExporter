@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 from datetime import datetime
 from pprint import pprint
 
@@ -46,6 +47,7 @@ class SlackExporter(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.messages = self.get_all_messages()
+        self.users = self.get_users()
 
     @staticmethod
     def get_all_messages() -> dict[str, list[SlackMessage]]:
@@ -122,6 +124,22 @@ class SlackExporter(commands.Cog):
             res[dirname] = sorted(_data, key=lambda x: float(x.message_ts))
         return res
 
+    @staticmethod
+    def get_users():
+        with open(f"/opt/target_files/users.json") as f:
+            users_data = json.load(f)
+
+        data = {}
+
+        for user in users_data:
+            user_id = user["id"]
+            user_name = user["profile"]["display_name_normalized"]
+            if user_name == "":
+                user_name = user["profile"]["real_name_normalized"]
+            data.update({user_id: user_name})
+
+        return data
+
     async def autocomplete_channel_names(self, ctx: discord.commands.context.ApplicationContext):
         return [value for value in self.messages.keys() if value.startswith(ctx.value)]
 
@@ -135,16 +153,20 @@ class SlackExporter(commands.Cog):
         ts_msg_dict = {}
 
         messages = self.messages[channel.name if channel_name is None else channel_name]
+
         for message in messages:
 
             try:
+                content = re.sub(r"<@([A-Z0-9]+)>", lambda m: f"<@{self.users[m.group(1)]}>", message.text)
                 embed = discord.Embed(
-                    title=message.user_real_name,
-                    description=message.text,
+                    description=content,
                     timestamp=datetime.fromtimestamp(float(message.message_ts), tz=datetime.now().astimezone().tzinfo),
                     color=discord.Color.blue()
                 )
-                embed.set_author(name=message.user_name, icon_url=message.user_profile_image)
+                embed.set_author(
+                    name=message.user_name if message.user_name != "" else message.user_real_name,
+                    icon_url=message.user_profile_image
+                )
 
                 attachments = []
                 for attachment in message.attachments:
@@ -156,14 +178,14 @@ class SlackExporter(commands.Cog):
                     reply_to = ts_msg_dict[message.thread_ts]
 
                 if reply_to is None:
-                    msg = await channel.send(embed=embed)
+                    msg = await channel.send(embed=embed, files=attachments)
                 else:
-                    msg = await reply_to.reply(embed=embed)
-
-                if len(attachments) > 0:
-                    await channel.send(files=attachments)
+                    if reply_to.thread is None:
+                        await reply_to.create_thread(name="スレッドで返信")
+                    msg = await reply_to.thread.send(embed=embed, files=attachments)
 
                 ts_msg_dict[message.message_ts] = msg
+
             except Exception as e:
                 sentry_sdk.capture_exception(e)
                 continue
@@ -173,6 +195,9 @@ class SlackExporter(commands.Cog):
             "ここまでSlackのログ",
             "==================="
         ]))
+
+        for thread in channel.threads:
+            await thread.archive()
 
     @slash_command(name="execute", description="移行を開始します")
     @commands.is_owner()
